@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101827">
+  <title>Nusuk Keys</title>
+  <style>
+    *{box-sizing:border-box} body{margin:0;font-family:Tahoma,Arial,sans-serif;background:#0b1220;color:#f8fafc;min-height:100vh}
+    .wrap{max-width:900px;margin:auto;padding:28px 16px 60px}
+    header{text-align:center;padding:24px 12px 28px}
+    .logo{display:inline-grid;place-items:center;width:62px;height:62px;border-radius:20px;background:#1e293b;color:#7dd3fc;font-size:30px;margin-bottom:12px}
+    h1{margin:0;font-size:30px} .sub{color:#a9b6ca;margin-top:10px}
+    .panel{background:#131f32;border:1px solid #29374d;border-radius:18px;padding:20px;margin:16px 0}
+    h2{font-size:19px;margin:0 0 16px}
+    label{display:block;color:#c7d2e2;font-size:14px;margin:12px 0 7px}
+    input{width:100%;padding:13px;border-radius:11px;border:1px solid #40516b;background:#0b1526;color:#fff;font-size:15px;outline:none}
+    input:focus{border-color:#38bdf8}
+    button{border:0;border-radius:11px;padding:12px 17px;font-weight:bold;cursor:pointer;background:#38bdf8;color:#082033}
+    button.secondary{background:#26364d;color:#e5edf8}
+    button:disabled{opacity:.55;cursor:wait}
+    .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:15px}.row button{flex:1}
+    .status{font-size:13px;color:#a9b6ca;min-height:20px;margin-top:12px}
+    .status.bad{color:#fca5a5}.status.good{color:#86efac}
+    .code-card{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px;border:1px solid #2a3a52;border-radius:13px;margin:10px 0;background:#0d1829}
+    .code{font-weight:bold;direction:ltr;text-align:left;overflow-wrap:anywhere;font-size:17px}
+    .owner{color:#a9b6ca;font-size:12px;margin-top:6px}
+    .empty{color:#a9b6ca;text-align:center;padding:20px}
+    details summary{cursor:pointer;color:#bae6fd}
+    .hint{font-size:13px;color:#a9b6ca;line-height:1.8}
+    .pin{color:#fcd34d;font-size:12px;margin-bottom:5px}
+    footer{text-align:center;color:#718096;font-size:12px;margin-top:28px}
+    @media(max-width:520px){.code-card{align-items:flex-start;flex-direction:column}.code-card button{width:100%}h1{font-size:25px}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">🔑</div>
+    <h1>Nusuk Keys</h1>
+    <div class="sub">شارك الأكواد واستعرض الأكواد المتاحة</div>
+  </header>
+
+  <section class="panel">
+    <h2>إعداد الاتصال بقاعدة البيانات</h2>
+    <p class="hint">أدخل رابط مشروع Supabase ومفتاح النشر Publishable Key. هذه بيانات الواجهة العامة، ولا تضع هنا أبدًا مفتاح secret أو service_role.</p>
+    <label for="projectUrl">رابط Supabase</label>
+    <input id="projectUrl" placeholder="https://xxxx.supabase.co" inputmode="url">
+    <label for="publishableKey">Publishable key</label>
+    <input id="publishableKey" placeholder="sb_publishable_..." autocomplete="off">
+    <div class="row"><button id="connectBtn">حفظ والاتصال</button></div>
+    <div id="connectionStatus" class="status">لم يتم الاتصال بعد.</div>
+  </section>
+
+  <section class="panel">
+    <h2>إضافة كود</h2>
+    <label for="newCode">الكود</label>
+    <input id="newCode" maxlength="80" placeholder="اكتب الكود هنا">
+    <label for="ownerName">اسم صاحب الكود (اختياري)</label>
+    <input id="ownerName" maxlength="80" placeholder="الاسم">
+    <div class="row"><button id="addBtn" disabled>إضافة الكود</button><button class="secondary" id="refreshBtn" disabled>تحديث القائمة</button></div>
+    <div id="addStatus" class="status"></div>
+  </section>
+
+  <section class="panel">
+    <h2>الأكواد المشتركة</h2>
+    <div id="codesList" class="empty">اتصل بقاعدة البيانات لعرض الأكواد.</div>
+  </section>
+
+  <section class="panel">
+    <details>
+      <summary>تعليمات إعداد قاعدة البيانات (للمرة الأولى فقط)</summary>
+      <p class="hint">تأكد أن جدول <b>public.codes</b> يحتوي الأعمدة: id و code و owner_name و created_at. إذا كانت سياسات القراءة أو الإضافة غير موجودة، افتح SQL Editor في Supabase وشغّل التالي. هذا يجعل الأكواد المعروضة عامة، فلا تضف معلومات شخصية أو سرية.</p>
+      <pre dir="ltr" style="white-space:pre-wrap;background:#0b1526;padding:12px;border-radius:10px;color:#dbeafe;font-size:12px">grant usage on schema public to anon;
+grant select, insert on table public.codes to anon;
+
+alter table public.codes enable row level security;
+
+drop policy if exists "Public can read codes" on public.codes;
+create policy "Public can read codes"
+on public.codes for select
+to anon
+using (true);
+
+drop policy if exists "Public can add codes" on public.codes;
+create policy "Public can add codes"
+on public.codes for insert
+to anon
+with check (
+  length(trim(code)) between 1 and 80
+);</pre>
+      <p class="hint">لا تشغّل SQL إذا كنت غير متأكد من السياسات الحالية؛ ويمكننا مراجعتها أولًا حتى لا نكررها بلا داعٍ.</p>
+    </details>
+  </section>
+  <footer>Nusuk Keys • واجهة تجريبية متصلة بـ Supabase</footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  let db = null;
+  const savedUrl = localStorage.getItem('nk_url');
+  const savedKey = localStorage.getItem('nk_key');
+  if (savedUrl) $('projectUrl').value = savedUrl;
+  if (savedKey) $('publishableKey').value = savedKey;
+
+  function status(id, message, type='') {
+    $(id).textContent = message;
+    $(id).className = 'status ' + type;
+  }
+  function safeText(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  async function connect() {
+    const url = $('projectUrl').value.trim().replace(/\/+$/,'');
+    const key = $('publishableKey').value.trim();
+    if (!/^https:\/\/[a-zA-Z0-9-]+\.supabase\.co$/.test(url) || !key.startsWith('sb_publishable_')) {
+      status('connectionStatus','راجع رابط Supabase ومفتاح Publishable Key.','bad'); return;
+    }
+    if (!window.supabase?.createClient) {
+      status('connectionStatus','تعذر تحميل مكتبة الاتصال. تحقق من الإنترنت ثم أعد المحاولة.','bad'); return;
+    }
+    db = window.supabase.createClient(url, key);
+    status('connectionStatus','جارٍ اختبار الاتصال...');
+    const {error} = await db.from('codes').select('id').limit(1);
+    if (error) {
+      db = null;
+      status('connectionStatus','الاتصال لم يكتمل: ' + error.message,'bad');
+      $('addBtn').disabled = $('refreshBtn').disabled = true;
+      return;
+    }
+    localStorage.setItem('nk_url',url);
+    localStorage.setItem('nk_key',key);
+    status('connectionStatus','تم الاتصال بقاعدة البيانات بنجاح.','good');
+    $('addBtn').disabled = $('refreshBtn').disabled = false;
+    await loadCodes();
+  }
+  async function loadCodes() {
+    if (!db) return;
+    $('codesList').textContent = 'جارٍ تحميل الأكواد...';
+    const {data,error} = await db.from('codes').select('id,code,owner_name,created_at').order('id',{ascending:false}).limit(200);
+    if (error) {
+      $('codesList').textContent = 'تعذر تحميل الأكواد: ' + error.message; return;
+    }
+    if (!data?.length) {
+      $('codesList').innerHTML = '<div class="empty">لا توجد أكواد حتى الآن.</div>'; return;
+    }
+    $('codesList').innerHTML = data.map(item => {
+      const pinned = item.code === 'NG-bZ1F83Q8';
+      return `<div class="code-card"><div>${pinned?'<div class="pin">★ كود مثبت</div>':''}<div class="code">${safeText(item.code)}</div><div class="owner">${safeText(item.owner_name || 'بدون اسم')}</div></div><button class="secondary" data-copy="${safeText(item.code)}">نسخ الكود</button></div>`;
+    }).join('');
+    $('codesList').querySelectorAll('[data-copy]').forEach(btn => btn.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(btn.dataset.copy); btn.textContent='تم النسخ'; }
+      catch { btn.textContent='انسخ يدويًا: ' + btn.dataset.copy; }
+    }));
+  }
+  async function addCode() {
+    if (!db) return;
+    const code = $('newCode').value.trim();
+    const owner_name = $('ownerName').value.trim();
+    if (!code || code.length > 80) { status('addStatus','اكتب كودًا من 1 إلى 80 حرفًا.','bad'); return; }
+    $('addBtn').disabled = true;
+    const {error} = await db.from('codes').insert({code, owner_name: owner_name || null, created_at: new Date().toISOString()});
+    $('addBtn').disabled = false;
+    if (error) { status('addStatus','لم تتم الإضافة: ' + error.message,'bad'); return; }
+    $('newCode').value = '';
+    status('addStatus','تمت إضافة الكود.','good');
+    await loadCodes();
+  }
+  $('connectBtn').addEventListener('click',connect);
+  $('addBtn').addEventListener('click',addCode);
+  $('refreshBtn').addEventListener('click',loadCodes);
+  if (savedUrl && savedKey) connect();
+})();
+</script>
+</body>
+</html>
